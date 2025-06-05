@@ -9,7 +9,7 @@ st.set_page_config(page_title="🚀 Futures Pump Detector", layout="wide")
 st.title("🚀 Binance Futures Token Pump (1 min ≥ 1%)")
 placeholder = st.empty()
 
-# Auto reload mỗi 60 giây
+# Tự động reload mỗi 60 giây
 st_autorefresh(interval=60 * 1000, key="refresh")
 
 # Lấy danh sách các symbol futures
@@ -48,13 +48,13 @@ def get_24h_volume():
 if "prev_prices" not in st.session_state:
     st.session_state.prev_prices = get_prices()
 
-# Tải data mới
+# Tải dữ liệu mới
 futures_symbols = get_futures_symbols()
 curr_prices = get_prices()
 volumes = get_24h_volume()
 movers = []
 
-# Tính % thay đổi
+# Tính phần trăm thay đổi
 for symbol in futures_symbols:
     if symbol in st.session_state.prev_prices and symbol in curr_prices:
         old = st.session_state.prev_prices[symbol]
@@ -70,10 +70,14 @@ for symbol in futures_symbols:
                 "Volume (24h USDT)": f"{vol:,.0f}"
             })
 
-# Hiển thị kết quả
-df = pd.DataFrame(movers)
-df = df.sort_values(by="Change %", ascending=False)
+# Tạo DataFrame với cột cố định để tránh lỗi khi không có dữ liệu
+df = pd.DataFrame(movers, columns=["Symbol", "Change %", "Volume (24h USDT)"])
 
+# Chỉ sắp xếp nếu có dữ liệu
+if not df.empty:
+    df = df.sort_values(by="Change %", ascending=False)
+
+# Hiển thị dữ liệu
 with placeholder.container():
     if df.empty:
         st.info("⏳ Không có token nào tăng ≥ 1% trong 1 phút gần nhất.")
@@ -82,4 +86,3 @@ with placeholder.container():
 
 # Cập nhật giá cũ cho lần kế tiếp
 st.session_state.prev_prices = curr_prices
-
