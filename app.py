@@ -4,7 +4,7 @@ import time
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 
-# Cấu hình trang
+# Cấu hình giao diện
 st.set_page_config(page_title="🚀 Futures Pump Detector", layout="wide")
 st.title("🚀 Binance Futures Token Pump (1 min ≥ 1%)")
 placeholder = st.empty()
@@ -12,7 +12,7 @@ placeholder = st.empty()
 # Tự động reload mỗi 60 giây
 st_autorefresh(interval=60 * 1000, key="refresh")
 
-# Lấy danh sách các symbol futures
+# Lấy danh sách futures symbols
 @st.cache_data(ttl=300)
 def get_futures_symbols():
     try:
@@ -29,26 +29,34 @@ def get_prices():
     try:
         url = "https://fapi.binance.com/fapi/v1/ticker/price"
         res = requests.get(url).json()
-        return {item["symbol"]: float(item["price"]) for item in res}
+        if isinstance(res, list):
+            return {item["symbol"]: float(item["price"]) for item in res}
+        else:
+            st.error(f"Lỗi từ Binance API (giá): {res}")
+            return {}
     except Exception as e:
         st.error(f"Lỗi khi lấy giá: {e}")
         return {}
 
-# Lấy khối lượng 24h
+# Lấy volume 24h
 def get_24h_volume():
     try:
         url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
         res = requests.get(url).json()
-        return {item["symbol"]: float(item["quoteVolume"]) for item in res}
+        if isinstance(res, list):
+            return {item["symbol"]: float(item["quoteVolume"]) for item in res}
+        else:
+            st.error(f"Lỗi từ Binance API (volume): {res}")
+            return {}
     except Exception as e:
         st.error(f"Lỗi khi lấy volume: {e}")
         return {}
 
-# Lưu dữ liệu giá cũ bằng session_state
+# Lưu giá trước đó bằng session_state
 if "prev_prices" not in st.session_state:
     st.session_state.prev_prices = get_prices()
 
-# Tải dữ liệu mới
+# Lấy dữ liệu hiện tại
 futures_symbols = get_futures_symbols()
 curr_prices = get_prices()
 volumes = get_24h_volume()
@@ -70,10 +78,8 @@ for symbol in futures_symbols:
                 "Volume (24h USDT)": f"{vol:,.0f}"
             })
 
-# Tạo DataFrame với cột cố định để tránh lỗi khi không có dữ liệu
+# Tạo DataFrame và sắp xếp
 df = pd.DataFrame(movers, columns=["Symbol", "Change %", "Volume (24h USDT)"])
-
-# Chỉ sắp xếp nếu có dữ liệu
 if not df.empty:
     df = df.sort_values(by="Change %", ascending=False)
 
@@ -84,5 +90,5 @@ with placeholder.container():
     else:
         st.dataframe(df, use_container_width=True)
 
-# Cập nhật giá cũ cho lần kế tiếp
+# Cập nhật giá cũ cho vòng sau
 st.session_state.prev_prices = curr_prices
